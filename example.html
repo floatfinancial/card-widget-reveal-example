@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Widget token test</title>
+    <script
+      type="module"
+      src="https://assets.synctera.com/widgets/reveal-card/v1.1.1/index.js"
+    ></script>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; }
+      label { display: block; margin-top: 12px; }
+      input { width: 100%; padding: 6px; box-sizing: border-box; }
+      button { margin-top: 16px; padding: 8px 16px; }
+      #status { margin-top: 16px; white-space: pre-wrap; font-size: 13px; }
+      reveal-card { display: block; margin-top: 24px; }
+    </style>
+  </head>
+  <body>
+    <h3>Widget token test</h3>
+
+    <label>Bearer token <input id="bearer-token" type="password" placeholder="API bearer token" /></label>
+    <label>Card ID <input id="card-id" placeholder="Float card UUID" /></label>
+    <button id="reveal">Get token &amp; reveal</button>
+
+    <div id="status"></div>
+    <div id="widget-container"></div>
+
+    <script>
+      const API_BASE_URL = "https://api.floatfinancial.com/v1";
+      const SYNCTERA_ENV = "production";
+
+      const statusEl = document.getElementById("status");
+      const log = (msg) => (statusEl.textContent = msg);
+
+      document.getElementById("reveal").addEventListener("click", async () => {
+        const cardId = document.getElementById("card-id").value.trim();
+        const bearerToken = document.getElementById("bearer-token").value.trim();
+
+        log("Requesting widget token...");
+        const res = await fetch(`${API_BASE_URL}/cards/${cardId}/widget_token/`, {
+          headers: { Authorization: `Bearer ${bearerToken}` },
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          log(`Endpoint returned ${res.status}: ${JSON.stringify(body)}`);
+          return;
+        }
+        log(`Got token, expires at ${body.expires_at}. Loading widget...`);
+
+        const container = document.getElementById("widget-container");
+        container.innerHTML = "";
+        const widget = document.createElement("reveal-card");
+        widget.setAttribute("env", SYNCTERA_ENV);
+        widget.setAttribute("card-form", "virtual");
+        widget.setAttribute("show-toggle", "true");
+        widget.addEventListener("load", () => widget.requestCardReveal());
+        widget.addEventListener("success", () => log(`Revealed. Token expires at ${body.expires_at}.`));
+        widget.addEventListener("error", (e) => log(`Widget error: ${JSON.stringify(e.detail)}`));
+        widget.addEventListener("failure", (e) => log(`Reveal failed: ${JSON.stringify(e.detail)}`));
+        container.appendChild(widget);
+        widget.setAttribute("token", body.token);
+      });
+    </script>
+  </body>
+</html>
